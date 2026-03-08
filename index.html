@@ -3,90 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Velocity | Dashboard</title>
+    <title>Velocity | Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #020617; color: #f8fafc; overflow: hidden; }
-        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(51, 65, 85, 0.5); }
-        .active-tab { color: #818cf8 !important; border-left: 4px solid #818cf8; background: rgba(99, 102, 241, 0.1); }
-        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; width: 100%; border-radius: 12px; transition: 0.2s; color: #94a3b8; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #020617; color: #e2e8f0; overflow: hidden; }
+        .glass-card { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.4); border-radius: 1.25rem; padding: 1.5rem; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; transition: 0.2s; color: #94a3b8; width: 100%; text-align: left; }
         .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
-        .stat-card { background: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 20px; }
-        select, input, textarea { background: #020617; border: 1px solid #334155; padding: 10px; border-radius: 10px; color: white; outline: none; width: 100%; }
+        .active-tab { color: #818cf8 !important; background: rgba(99, 102, 241, 0.1); border-left: 4px solid #818cf8; }
+        .stat-card { background: linear-gradient(145deg, #0f172a, #1e293b); border: 1px solid #334155; padding: 1.25rem; border-radius: 1.25rem; }
+        select, input, textarea { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 0.75rem !important; padding: 0.75rem !important; outline: none; color: white; width: 100%; }
+        .log-line { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
     </style>
 </head>
 <body class="flex h-screen">
 
-    <aside class="w-64 border-r border-slate-800 p-6 flex flex-col hidden md:flex">
-        <div class="text-indigo-500 font-bold text-2xl flex items-center gap-2 mb-10"><i data-lucide="zap"></i> VELOCITY</div>
+    <aside class="hidden md:flex w-72 bg-[#080c14] border-r border-slate-800 flex-col p-6">
+        <div class="flex items-center gap-3 text-indigo-400 font-extrabold text-2xl mb-10"><i data-lucide="zap"></i> VELOCITY</div>
         <nav class="space-y-2 flex-1">
-            <button onclick="setTab('home')" id="btn-home" class="nav-item active-tab"><i data-lucide="home"></i> Home</button>
-            <button onclick="setTab('mod')" id="btn-mod" class="nav-item"><i data-lucide="shield"></i> Security</button>
-            <button onclick="setTab('tickets')" id="btn-tickets" class="nav-item"><i data-lucide="ticket"></i> AI Support</button>
-            <button onclick="setTab('files')" id="btn-files" class="nav-item"><i data-lucide="file"></i> Files</button>
+            <button onclick="showTab('home')" id="btn-home" class="nav-item active-tab"><i data-lucide="layout-dashboard"></i> Home</button>
+            <button onclick="showTab('builder')" id="btn-builder" class="nav-item"><i data-lucide="message-square"></i> Builder</button>
+            <button onclick="showTab('mod')" id="btn-mod" class="nav-item"><i data-lucide="shield-alert"></i> Security</button>
+            <button onclick="showTab('files')" id="btn-files" class="nav-item"><i data-lucide="folder-open"></i> Cloud Files</button>
+            <button onclick="showTab('logs')" id="btn-logs" class="nav-item"><i data-lucide="activity"></i> Logs</button>
+            <button onclick="showTab('tickets')" id="btn-tickets" class="nav-item"><i data-lucide="ticket"></i> AI Tickets</button>
         </nav>
     </aside>
 
     <main class="flex-1 overflow-y-auto p-6 md:p-10">
         
-        <section id="tab-home" class="space-y-8">
-            <h1 class="text-3xl font-bold">System Overview</h1>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="stat-card">
-                    <p class="text-xs text-slate-500 font-bold uppercase">Members</p>
-                    <h2 id="s-mem" class="text-2xl font-bold mt-1">--</h2>
-                </div>
-                <div class="stat-card">
-                    <p class="text-xs text-slate-500 font-bold uppercase">Latency</p>
-                    <h2 id="s-ping" class="text-2xl font-bold mt-1">--ms</h2>
-                </div>
-                <div class="stat-card">
-                    <p class="text-xs text-slate-500 font-bold uppercase">Tickets</p>
-                    <h2 id="s-tix" class="text-2xl font-bold mt-1">--</h2>
-                </div>
-                <div class="stat-card">
-                    <p class="text-xs text-slate-500 font-bold uppercase">Files</p>
-                    <h2 id="s-files" class="text-2xl font-bold mt-1">--</h2>
-                </div>
+        <section id="tab-home" class="max-w-5xl mx-auto space-y-8">
+            <div class="flex justify-between items-end">
+                <div><h2 class="text-3xl font-bold">System Pulse</h2><p class="text-slate-500 text-sm">Real-time metrics and server growth.</p></div>
+                <div class="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-xs font-bold border border-green-500/20 animate-pulse">LIVE</div>
             </div>
-
-            <div class="grid md:grid-cols-3 gap-6">
-                <div class="md:col-span-2 glass p-6 rounded-3xl h-80">
-                    <canvas id="growthChart"></canvas>
-                </div>
-                <div class="glass p-6 rounded-3xl space-y-4">
-                    <h3 class="font-bold flex items-center gap-2"><i data-lucide="brain"></i> Knowledge Brain</h3>
-                    <textarea id="k-input" class="h-40 text-xs" placeholder="Rules, FAQ, etc..."></textarea>
-                    <button onclick="saveK()" class="bg-indigo-600 w-full py-2 rounded-xl font-bold text-sm">Update AI</button>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="stat-card"> <p class="text-slate-500 text-[10px] font-bold uppercase">Members</p> <h3 id="s-mem" class="text-2xl font-bold">--</h3> </div>
+                <div class="stat-card"> <p class="text-slate-500 text-[10px] font-bold uppercase">Latency</p> <h3 id="s-ping" class="text-2xl font-bold">--ms</h3> </div>
+                <div class="stat-card"> <p class="text-slate-500 text-[10px] font-bold uppercase">AI Tickets</p> <h3 id="s-tix" class="text-2xl font-bold">--</h3> </div>
+                <div class="stat-card"> <p class="text-slate-500 text-[10px] font-bold uppercase">Files</p> <h3 id="s-files" class="text-2xl font-bold">--</h3> </div>
+            </div>
+            <div class="grid lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 glass-card h-80"><canvas id="growthChart"></canvas></div>
+                <div class="glass-card space-y-4">
+                    <h3 class="font-bold flex items-center gap-2"><i data-lucide="brain-circuit"></i> AI Training</h3>
+                    <textarea id="k-input" class="h-40 text-xs" placeholder="keyword: response..."></textarea>
+                    <button onclick="saveK()" class="w-full bg-indigo-600 py-2 rounded-xl font-bold text-sm">Save Knowledge</button>
                 </div>
             </div>
         </section>
 
-        <section id="tab-mod" class="hidden space-y-6">
+        <section id="tab-builder" class="hidden max-w-4xl mx-auto space-y-6">
+            <h2 class="text-2xl font-bold">Message Builder</h2>
+            <div class="glass-card space-y-4">
+                <select id="b-chan" class="channel-list"></select>
+                <textarea id="b-msg" class="h-32" placeholder="Announcement text..."></textarea>
+                <button onclick="sendMsg()" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Post to Channel</button>
+            </div>
+        </section>
+
+        <section id="tab-mod" class="hidden max-w-4xl mx-auto space-y-6">
             <h2 class="text-2xl font-bold">Security Suite</h2>
-            <div class="glass p-6 rounded-3xl grid md:grid-cols-2 gap-4">
-                <select id="m-user" class="user-list"></select>
-                <input id="m-reason" placeholder="Reason for action...">
-                <div class="grid grid-cols-3 gap-2 col-span-2">
-                    <button onclick="mod('warn')" class="bg-yellow-600/20 text-yellow-500 p-2 rounded-xl font-bold">WARN</button>
-                    <button onclick="mod('kick')" class="bg-orange-600/20 text-orange-500 p-2 rounded-xl font-bold">KICK</button>
-                    <button onclick="mod('ban')" class="bg-red-600 p-2 rounded-xl font-bold">BAN</button>
+            <div class="glass-card space-y-6">
+                <div class="grid md:grid-cols-2 gap-4"><select id="m-user" class="user-list"></select><input id="m-reason" placeholder="Reason..."></div>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="mod('warn')" class="bg-yellow-600/20 text-yellow-500 p-2 rounded-lg font-bold text-xs">WARN</button>
+                    <button onclick="mod('kick')" class="bg-orange-600/20 text-orange-500 p-2 rounded-lg font-bold text-xs">KICK</button>
+                    <button onclick="mod('ban')" class="bg-red-600 text-white p-2 rounded-lg font-bold text-xs">BAN</button>
+                    <button onclick="mod('timeout')" class="bg-slate-700 p-2 rounded-lg font-bold text-xs">TIMEOUT</button>
                 </div>
+                <input type="range" id="m-time" min="1" max="60" value="10" class="accent-indigo-500">
             </div>
         </section>
 
-        <section id="tab-tickets" class="hidden space-y-6">
-            <h2 class="text-2xl font-bold">Ticket Transcripts</h2>
-            <div id="transcript-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        <section id="tab-files" class="hidden max-w-4xl mx-auto space-y-6">
+            <h2 class="text-2xl font-bold">Pending Files</h2>
+            <div id="file-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </section>
 
-        <section id="tab-files" class="hidden space-y-6">
-            <h2 class="text-2xl font-bold">File Approval</h2>
-            <div id="file-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        <section id="tab-logs" class="hidden max-w-4xl mx-auto space-y-4">
+            <h2 class="text-2xl font-bold">Live Logs</h2>
+            <div id="log-cont" class="glass-card h-[60vh] overflow-y-auto space-y-1"></div>
+        </section>
+
+        <section id="tab-tickets" class="hidden max-w-4xl mx-auto space-y-6">
+            <h2 class="text-2xl font-bold">Ticket Transcripts</h2>
+            <div id="ticket-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </section>
 
     </main>
@@ -95,77 +101,74 @@
         const socket = io();
         let chart;
 
-        function setTab(t) {
-            ['home', 'mod', 'tickets', 'files'].forEach(id => {
-                document.getElementById(`tab-${id}`).classList.add('hidden');
-                document.getElementById(`btn-${id}`).classList.remove('active-tab');
-            });
+        function showTab(t) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active-tab'));
             document.getElementById(`tab-${t}`).classList.remove('hidden');
             document.getElementById(`btn-${t}`).classList.add('active-tab');
             lucide.createIcons();
         }
 
         socket.on('initData', (data) => {
+            document.querySelectorAll('.channel-list').forEach(s => s.innerHTML = data.channels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join(''));
+            document.querySelectorAll('.user-list').forEach(s => s.innerHTML = data.members.map(m => `<option value="${m.id}">${m.tag}</option>`).join(''));
             document.getElementById('k-input').value = data.knowledge || "";
-            document.querySelector('.user-list').innerHTML = data.members.map(m => `<option value="${m.id}">${m.tag}</option>`).join('');
             updateStats(data.stats);
             renderChart(data.joinData);
-            renderTickets(data.tickets);
             renderFiles(data.files);
+            renderTickets(data.tickets);
         });
 
         socket.on('statsUpdate', (s) => updateStats(s));
-
         function updateStats(s) {
             document.getElementById('s-mem').innerText = s.members;
-            document.getElementById('s-ping').innerText = s.ping;
+            document.getElementById('s-ping').innerText = s.ping + 'ms';
             document.getElementById('s-tix').innerText = s.tickets;
             document.getElementById('s-files').innerText = s.files;
         }
 
         function renderChart(data) {
             const ctx = document.getElementById('growthChart').getContext('2d');
-            if (chart) chart.destroy();
+            if(chart) chart.destroy();
             chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: data.labels,
-                    datasets: [{
-                        label: 'New Joins',
-                        data: data.values,
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    datasets: [{ label: 'Joins', data: data.values, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        function saveK() { socket.emit('saveKnowledge', document.getElementById('k-input').value); alert("Brain Saved!"); }
-        function mod(type) { socket.emit('moderation', { type, userId: document.getElementById('m-user').value, reason: document.getElementById('m-reason').value }); }
-        
-        function renderTickets(data) {
-            document.getElementById('transcript-list').innerHTML = data.transcripts.map(t => `
-                <div class="glass p-4 rounded-2xl flex justify-between items-center">
-                    <div><p class="font-bold">${t.user}</p><p class="text-[10px] text-slate-500">${t.date}</p></div>
-                    <button class="bg-indigo-600 text-[10px] px-3 py-1 rounded-lg">TRANSCRIPT</button>
-                </div>
-            `).join('');
-        }
-
         function renderFiles(files) {
-            document.getElementById('file-list').innerHTML = files.map(f => `
-                <div class="glass p-4 rounded-2xl flex justify-between items-center">
-                    <p class="text-xs font-bold">${f.name}</p>
+            document.getElementById('file-grid').innerHTML = files.filter(f => f.status === 'pending').map(f => `
+                <div class="glass-card flex justify-between items-center p-3">
+                    <span class="text-xs font-bold">${f.name}</span>
                     <button onclick="socket.emit('fileAction', {id: ${f.id}, status: 'approved'})" class="text-green-500"><i data-lucide="check"></i></button>
                 </div>
             `).join('');
             lucide.createIcons();
         }
 
-        socket.on('connect', () => socket.emit('getInitData'));
+        function renderTickets(tix) {
+            document.getElementById('ticket-grid').innerHTML = tix.transcripts.map(t => `
+                <div class="glass-card flex justify-between items-center">
+                    <div><p class="text-xs font-bold">${t.user}</p><p class="text-[9px] text-slate-500">${t.date}</p></div>
+                    <button class="bg-slate-800 text-[10px] px-3 py-1 rounded">VIEW</button>
+                </div>
+            `).join('');
+        }
+
+        socket.on('discordMessage', (m) => {
+            const l = document.getElementById('log-cont');
+            l.insertAdjacentHTML('beforeend', `<div class="log-line text-slate-400">[${m.time}] <span class="text-indigo-400">@${m.author}</span>: ${m.content}</div>`);
+            l.scrollTop = l.scrollHeight;
+        });
+
+        function saveK() { socket.emit('saveKnowledge', document.getElementById('k-input').value); alert("Brain Updated!"); }
+        function sendMsg() { socket.emit('sendMessage', { channelId: document.getElementById('b-chan').value, content: document.getElementById('b-msg').value }); }
+        function mod(type) { socket.emit('moderation', { type, userId: document.getElementById('m-user').value, reason: document.getElementById('m-reason').value, time: document.getElementById('m-time').value }); }
+
         lucide.createIcons();
     </script>
 </body>
