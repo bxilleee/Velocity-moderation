@@ -46,7 +46,7 @@ client.on('interactionCreate', async (int) => {
     const data = { name: file.name, url: file.url, uploader: int.user.tag, time: new Date().toLocaleTimeString() };
     uploadedFiles.unshift(data);
     io.emit('newFile', data);
-    await int.reply({ content: '✅ Uploaded!', ephemeral: true });
+    await int.reply({ content: '✅ Uploaded to Dashboard!', ephemeral: true });
 });
 
 io.on('connection', (socket) => {
@@ -58,12 +58,10 @@ io.on('connection', (socket) => {
             channels: guild.channels.cache.filter(c => c.type === 0).map(c => ({id: c.id, name: c.name})),
             vcs: guild.channels.cache.filter(c => c.type === 2).map(c => ({id: c.id, name: c.name})),
             members: members.map(m => ({id: m.id, tag: m.user.tag})),
-            recentJoins,
             files: uploadedFiles
         });
     });
 
-    // FETCH CHANNEL HISTORY
     socket.on('fetchHistory', async (channelId) => {
         try {
             const channel = await client.channels.fetch(channelId);
@@ -77,7 +75,7 @@ io.on('connection', (socket) => {
                 time: m.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             })).reverse();
             socket.emit('historyData', history);
-        } catch (e) { console.error("History Error:", e); }
+        } catch (e) { console.error(e); }
     });
 
     socket.on('sendMessage', async (d) => {
@@ -90,20 +88,23 @@ io.on('connection', (socket) => {
         try {
             const member = await guild.members.fetch(d.userId);
             const channel = await guild.channels.fetch(d.channelId);
-            if(d.type === 'warn') {
-                await member.send(`⚠️ **Warned in ${guild.name}:** ${d.reason}`).catch(()=>{});
-                await channel.send(`⚠️ **WARN:** <@${d.userId}> | ${d.reason}`);
-            }
-            if(d.type === 'lock' || d.type === 'unlock') {
-                await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: d.type === 'unlock' });
-                await channel.send(`🛡️ **Channel ${d.type === 'lock' ? 'Locked' : 'Unlocked'}** by Admin.`);
-            }
+            
             switch(d.type) {
+                case 'warn': 
+                    await member.send(`⚠️ **Warned in ${guild.name}:** ${d.reason}`).catch(()=>{});
+                    await channel.send(`⚠️ **WARN:** <@${d.userId}> | ${d.reason}`); 
+                    break;
                 case 'kick': await member.kick(d.reason); break;
                 case 'ban': await member.ban({ reason: d.reason }); break;
                 case 'timeout': await member.timeout(d.time * 60000, d.reason); break;
+                case 'lock': await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: false }); break;
+                case 'unlock': await channel.permissionOverwrites.edit(guild.roles.everyone, { SendMessages: true }); break;
+                case 'slowmode': await channel.setRateLimitPerUser(parseInt(d.slow)); break;
+                case 'move': await member.voice.setChannel(d.vcId); break;
+                case 'disconnect': await member.voice.disconnect(); break;
+                case 'mute': await member.voice.setMute(!member.voice.mute); break;
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Moderation Error:", e); }
     });
 });
 
