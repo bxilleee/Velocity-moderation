@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -10,17 +10,31 @@ const client = new Client({
         GatewayIntentBits.GuildMessages, 
         GatewayIntentBits.MessageContent, 
         GatewayIntentBits.GuildMembers, 
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildInvites
     ],
-    partials: [Partials.Channel]
+    partials: [Partials.Channel, Partials.GuildMember]
 });
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Serves the HTML file directly from the root
+// Store for invites and recent joins
+const invites = new Collection();
+let recentJoins = [];
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+client.on('ready', async () => {
+    console.log('Velocity Engine Online');
+    // Cache initial invites
+    const guild = client.guilds.cache.first();
+    if (guild) {
+        const firstInvites = await guild.invites.fetch();
+        invites.set(guild.id, new Collection(firstInvites.map((inv) => [inv.code, inv.uses])));
+    }
+});
 
 io.on('connection', (socket) => {
     socket.on('getInitData', async () => {
@@ -28,10 +42,14 @@ io.on('connection', (socket) => {
         if (!guild) return;
         
         const members = await guild.members.fetch();
+        const currentInvites = await guild.invites.fetch();
+        
         socket.emit('initData', {
             channels: guild.channels.cache.filter(c => c.type === 0).map(c => ({id: c.id, name: c.name})),
             vcs: guild.channels.cache.filter(c => c.type === 2).map(c => ({id: c.id, name: c.name})),
-            members: members.map(m => ({id: m.id, tag: m.user.tag}))
+            members: members.map(m => ({id: m.id, tag: m.user.tag})),
+            recentJoins: recentJoins,
+            invites: currentInvites.map(i => ({code: i.code, uses: i.uses, inviter: i.inviter?.tag || 'Unknown'}))
         });
     });
 
@@ -45,7 +63,6 @@ io.on('connection', (socket) => {
         try {
             const member = await guild.members.fetch(d.userId);
             const channel = await guild.channels.fetch(d.channelId);
-
             switch(d.type) {
                 case 'timeout': await member.timeout(d.time * 60000, d.reason); break;
                 case 'kick': await member.kick(d.reason); break;
@@ -62,11 +79,29 @@ io.on('connection', (socket) => {
     });
 });
 
+// Member Join Event (Invite Tracking)
+client.on('guildMemberAdd', async (member) => {
+    const newInvites = await member.guild.invites.fetch();
+    const oldInvites = invites.get(member.guild.id);
+    const invite = newInvites.find(i => i.uses > oldInvites.get(i.code));
+    invites.set(member.guild.id, new Collection(newInvites.map((inv) => [inv.code, inv.uses])));
+
+    const joinData = {
+        tag: member.user.tag,
+        time: new Date().toLocaleTimeString(),
+        inviteCode: invite ? invite.code : 'Unknown/URL',
+        inviter: invite ? invite.inviter.tag : 'System'
+    };
+
+    recentJoins.unshift(joinData);
+    if (recentJoins.length > 10) recentJoins.pop();
+    
+    io.emit('newJoiner', joinData);
+});
+
 client.on('messageCreate', (m) => {
     if (!m.author.bot) io.emit('discordMessage', { author: m.author.username, content: m.content, channel: m.channel.name });
 });
 
-// IMPORTANT: This pulls from Railway/VPS Variables, NOT GitHub code
 client.login(process.env.TOKEN);
-
-server.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log('Velocity Engine Online'));
+server.listen(process.env.PORT || 3000, '0.0.0.0');
