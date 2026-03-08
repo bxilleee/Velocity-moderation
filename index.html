@@ -10,78 +10,45 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #020617; color: #f8fafc; }
-        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; transition: 0.3s; color: #94a3b8; width: 100%; cursor: pointer; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #020617; color: #f8fafc; overflow: hidden; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; transition: 0.3s; color: #94a3b8; cursor: pointer; }
         .sidebar-item:hover { background: rgba(99, 102, 241, 0.1); color: #818cf8; }
         .sidebar-item.active { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-left: 4px solid #818cf8; }
         .glass-panel { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.5); border-radius: 24px; padding: 24px; }
-        .stat-value { font-size: 1.875rem; font-weight: 700; color: #ffffff; }
-        select, input, textarea { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 12px !important; padding: 12px !important; color: white; outline: none; }
-        #log-container::-webkit-scrollbar { width: 4px; }
-        #log-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        select, input, textarea { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 12px !important; padding: 12px !important; color: white; outline: none; width: 100%; }
+        input[type="range"] { accent-color: #818cf8; }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden">
+<body class="flex h-screen">
 
-    <aside class="w-72 border-r border-slate-800 p-6 flex flex-col shrink-0">
-        <div class="flex items-center gap-3 text-indigo-500 font-extrabold text-2xl mb-10 px-2">
-            <i data-lucide="zap" class="fill-indigo-500"></i> VELOCITY
-        </div>
+    <aside class="w-64 border-r border-slate-800 p-6 flex flex-col shrink-0">
+        <div class="flex items-center gap-3 text-indigo-500 font-extrabold text-2xl mb-10 px-2"><i data-lucide="zap"></i> VELOCITY</div>
         <nav class="space-y-2 flex-1">
             <div onclick="setTab('home')" id="nav-home" class="sidebar-item active"><i data-lucide="layout-dashboard"></i> Home</div>
-            <div onclick="setTab('builder')" id="nav-builder" class="sidebar-item"><i data-lucide="pen-tool"></i> Builder</div>
-            <div onclick="setTab('mod')" id="nav-mod" class="sidebar-item"><i data-lucide="shield-check"></i> Security</div>
-            <div onclick="setTab('files')" id="nav-files" class="sidebar-item"><i data-lucide="cloud-upload"></i> Cloud Files</div>
-            <div onclick="setTab('tickets')" id="nav-tickets" class="sidebar-item"><i data-lucide="ticket"></i> AI Support</div>
-            <div onclick="setTab('logs')" id="nav-logs" class="sidebar-item"><i data-lucide="terminal"></i> Live Logs</div>
+            <div onclick="setTab('mod')" id="nav-mod" class="sidebar-item"><i data-lucide="shield-alert"></i> Security</div>
+            <div onclick="setTab('tickets')" id="nav-tickets" class="sidebar-item"><i data-lucide="ticket"></i> AI Tickets</div>
+            <div onclick="setTab('builder')" id="nav-builder" class="sidebar-item"><i data-lucide="message-square"></i> Builder</div>
+            <div onclick="setTab('files')" id="nav-files" class="sidebar-item"><i data-lucide="folder-open"></i> Cloud Files</div>
+            <div onclick="setTab('logs')" id="nav-logs" class="sidebar-item"><i data-lucide="activity"></i> Logs</div>
         </nav>
-        <div class="mt-auto p-4 glass-panel border-indigo-500/20 text-center">
-            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">System Status</p>
-            <p class="text-green-500 text-sm font-bold flex items-center justify-center gap-2 mt-1">
-                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Operational
-            </p>
-        </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto p-8 relative">
+    <main class="flex-1 overflow-y-auto p-10">
         
-        <section id="tab-home" class="tab-content space-y-8 animate-in fade-in duration-500">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-3xl font-bold tracking-tight">System Pulse</h1>
-                    <p class="text-slate-400 mt-1">Real-time metrics and member growth.</p>
-                </div>
+        <section id="tab-home" class="tab-content space-y-8">
+            <h1 class="text-3xl font-bold">System Pulse</h1>
+            <div class="grid grid-cols-4 gap-4">
+                <div class="glass-panel text-center"> <p class="text-xs text-slate-500 font-bold uppercase">Members</p> <div id="s-mem" class="text-2xl font-bold">--</div> </div>
+                <div class="glass-panel text-center"> <p class="text-xs text-slate-500 font-bold uppercase">Ping</p> <div id="s-ping" class="text-2xl font-bold">--ms</div> </div>
+                <div class="glass-panel text-center"> <p class="text-xs text-slate-500 font-bold uppercase">Tickets</p> <div id="s-tix" class="text-2xl font-bold text-emerald-400">--</div> </div>
+                <div class="glass-panel text-center"> <p class="text-xs text-slate-500 font-bold uppercase">Files</p> <div id="s-files" class="text-2xl font-bold">--</div> </div>
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div class="glass-panel text-center">
-                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Total Members</p>
-                    <div id="stat-members" class="stat-value">--</div>
-                </div>
-                <div class="glass-panel text-center">
-                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Bot Ping</p>
-                    <div id="stat-ping" class="stat-value text-indigo-400">--ms</div>
-                </div>
-                <div class="glass-panel text-center">
-                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Active Tickets</p>
-                    <div id="stat-tickets" class="stat-value text-emerald-400">--</div>
-                </div>
-                <div class="glass-panel text-center">
-                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Cloud Files</p>
-                    <div id="stat-files" class="stat-value text-amber-400">--</div>
-                </div>
-            </div>
-
             <div class="grid lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 glass-panel h-96">
-                    <h3 class="text-sm font-bold text-slate-400 mb-6 uppercase tracking-wider">7-Day Join Analytics</h3>
-                    <div class="h-64"><canvas id="growthChart"></canvas></div>
-                </div>
-                <div class="glass-panel space-y-4">
-                    <h3 class="font-bold flex items-center gap-2 text-indigo-400"><i data-lucide="brain"></i> Knowledge Brain</h3>
-                    <p class="text-xs text-slate-500">Train the AI with custom rules (keyword:response).</p>
-                    <textarea id="knowledge-input" class="h-48 text-sm" placeholder="rules: Please read #rules.&#10;vip: Type /buy in-game."></textarea>
-                    <button onclick="saveKnowledge()" class="w-full bg-indigo-600 hover:bg-indigo-500 transition py-3 rounded-xl font-bold">Update AI Intelligence</button>
+                <div class="lg:col-span-2 glass-panel h-80"><canvas id="growthChart"></canvas></div>
+                <div class="glass-panel space-y-4 text-center flex flex-col justify-center">
+                    <div class="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 mx-auto"><i data-lucide="brain-circuit" class="w-8 h-8"></i></div>
+                    <h3 class="font-bold">AI Knowledge</h3>
+                    <p class="text-xs text-slate-500">The bot learns from the input in the AI Support tab.</p>
                 </div>
             </div>
         </section>
@@ -90,151 +57,131 @@
             <h1 class="text-3xl font-bold">Security Suite</h1>
             <div class="glass-panel space-y-6">
                 <div class="grid md:grid-cols-2 gap-4">
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold text-slate-500">TARGET USER</label>
-                        <select id="mod-user" class="user-list"></select>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold text-slate-500">REASON</label>
-                        <input id="mod-reason" placeholder="Violating rules...">
-                    </div>
+                    <select id="m-user" class="user-list"></select>
+                    <input id="m-reason" placeholder="Reason for action...">
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <button onclick="modAction('warn')" class="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 py-3 rounded-xl font-bold">WARN</button>
-                    <button onclick="modAction('kick')" class="bg-orange-500/10 text-orange-500 border border-orange-500/20 py-3 rounded-xl font-bold">KICK</button>
-                    <button onclick="modAction('ban')" class="bg-red-600 hover:bg-red-500 py-3 rounded-xl font-bold text-white">BAN</button>
-                    <button onclick="modAction('timeout')" class="bg-slate-700 hover:bg-slate-600 py-3 rounded-xl font-bold">TIMEOUT (10m)</button>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs font-bold text-slate-500"><span>TIMEOUT DURATION</span><span id="time-val">10 Minutes</span></div>
+                    <input type="range" id="m-time" min="1" max="60" value="10" oninput="document.getElementById('time-val').innerText = this.value + ' Minutes'">
+                </div>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="mod('warn')" class="bg-yellow-500/10 text-yellow-500 p-3 rounded-xl font-bold text-xs">WARN</button>
+                    <button onclick="mod('kick')" class="bg-orange-500/10 text-orange-500 p-3 rounded-xl font-bold text-xs">KICK</button>
+                    <button onclick="mod('ban')" class="bg-red-600 text-white p-3 rounded-xl font-bold text-xs">BAN</button>
+                    <button onclick="mod('timeout')" class="bg-slate-700 p-3 rounded-xl font-bold text-xs">TIMEOUT</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-tickets" class="tab-content hidden space-y-6">
+            <h1 class="text-3xl font-bold">AI Support & Knowledge</h1>
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div class="glass-panel space-y-4">
+                    <h3 class="font-bold text-indigo-400 flex items-center gap-2"><i data-lucide="brain"></i> Train AI Knowledge</h3>
+                    <textarea id="k-input" class="h-64 text-sm" placeholder="keyword: response..."></textarea>
+                    <button onclick="saveK()" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Update Knowledge Base</button>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="font-bold">Recent Transcripts</h3>
+                    <div id="ticket-list" class="space-y-3"></div>
                 </div>
             </div>
         </section>
 
         <section id="tab-builder" class="tab-content hidden space-y-6">
-            <h1 class="text-3xl font-bold text-white">Message Builder</h1>
+            <h1 class="text-3xl font-bold">Message Builder</h1>
             <div class="glass-panel space-y-4">
-                <select id="build-channel" class="channel-list"></select>
-                <textarea id="build-msg" class="h-40" placeholder="Type your announcement here..."></textarea>
-                <button onclick="sendMessage()" class="w-full bg-indigo-600 py-4 rounded-xl font-bold text-lg">Send Message</button>
+                <select id="b-chan" class="channel-list"></select>
+                <textarea id="b-msg" class="h-40" placeholder="Message..."></textarea>
+                <button onclick="sendMsg()" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Send Announcement</button>
             </div>
         </section>
 
         <section id="tab-files" class="tab-content hidden space-y-6">
-            <h1 class="text-3xl font-bold">Cloud File Approvals</h1>
-            <div id="file-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-        </section>
-
-        <section id="tab-tickets" class="tab-content hidden space-y-6">
-            <h1 class="text-3xl font-bold">AI Support Tickets</h1>
-            <div id="ticket-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <h1 class="text-3xl font-bold">Cloud Approvals</h1>
+            <div id="file-grid" class="grid grid-cols-2 gap-4"></div>
         </section>
 
         <section id="tab-logs" class="tab-content hidden space-y-6">
-            <h1 class="text-3xl font-bold">Live Stream</h1>
-            <div id="log-container" class="glass-panel h-[70vh] overflow-y-auto font-mono text-[11px] text-slate-400 space-y-1"></div>
+            <h1 class="text-3xl font-bold">System Logs</h1>
+            <div id="log-cont" class="glass-panel h-[60vh] overflow-y-auto font-mono text-[11px] text-slate-400 space-y-1"></div>
         </section>
 
     </main>
 
     <script>
         const socket = io();
-        let growthChart;
+        let chart;
 
-        function setTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            document.getElementById(`nav-${tabId}`).classList.add('active');
+        function setTab(t) {
+            document.querySelectorAll('.tab-content').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${t}`).classList.remove('hidden');
+            document.getElementById(`nav-${t}`).classList.add('active');
             lucide.createIcons();
         }
 
         socket.on('initData', (data) => {
-            // Populate Dropdowns
             document.querySelectorAll('.channel-list').forEach(s => s.innerHTML = data.channels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join(''));
             document.querySelectorAll('.user-list').forEach(s => s.innerHTML = data.members.map(m => `<option value="${m.id}">${m.tag}</option>`).join(''));
-            
-            // Knowledge
-            document.getElementById('knowledge-input').value = data.knowledge || "";
-            
-            // Stats & Charts
+            document.getElementById('k-input').value = data.knowledge || "";
             updateStats(data.stats);
-            renderGrowthChart(data.joinData);
-            
-            // Lists
+            renderChart(data.joinData);
             renderFiles(data.files);
             renderTickets(data.tickets);
         });
 
-        socket.on('statsUpdate', (stats) => updateStats(stats));
-
         function updateStats(s) {
-            document.getElementById('stat-members').innerText = s.members;
-            document.getElementById('stat-ping').innerText = s.ping + 'ms';
-            document.getElementById('stat-tickets').innerText = s.tickets;
-            document.getElementById('stat-files').innerText = s.files;
+            document.getElementById('s-mem').innerText = s.members;
+            document.getElementById('s-ping').innerText = s.ping + 'ms';
+            document.getElementById('s-tix').innerText = s.tickets;
+            document.getElementById('s-files').innerText = s.files;
         }
 
-        function renderGrowthChart(data) {
+        function renderChart(data) {
             const ctx = document.getElementById('growthChart').getContext('2d');
-            if (growthChart) growthChart.destroy();
-            growthChart = new Chart(ctx, {
+            if(chart) chart.destroy();
+            chart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: data.labels,
-                    datasets: [{
-                        label: 'Daily Joins',
-                        data: data.values,
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 3,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#6366f1'
-                    }]
+                    datasets: [{ label: 'Joins', data: data.values, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
-                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
         function renderFiles(files) {
-            const grid = document.getElementById('file-grid');
-            grid.innerHTML = files.filter(f => f.status === 'pending').map(f => `
-                <div class="glass-panel flex justify-between items-center">
-                    <div><p class="font-bold text-sm">${f.name}</p><p class="text-[10px] text-slate-500">PENDING APPROVAL</p></div>
-                    <button onclick="socket.emit('fileAction', {id: ${f.id}, status: 'approved'})" class="text-emerald-500 hover:scale-110"><i data-lucide="check-circle"></i></button>
+            document.getElementById('file-grid').innerHTML = files.filter(f => f.status === 'pending').map(f => `
+                <div class="glass-panel flex justify-between items-center p-3">
+                    <span class="text-xs font-bold">${f.name}</span>
+                    <button onclick="socket.emit('fileAction', {id: ${f.id}, status: 'approved'})" class="text-green-500"><i data-lucide="check"></i></button>
                 </div>
             `).join('');
             lucide.createIcons();
         }
 
         function renderTickets(tix) {
-            document.getElementById('ticket-grid').innerHTML = tix.transcripts.map(t => `
+            document.getElementById('ticket-list').innerHTML = tix.transcripts.map(t => `
                 <div class="glass-panel flex justify-between items-center">
-                    <div><p class="font-bold text-sm">${t.user}</p><p class="text-[10px] text-slate-500">${t.date}</p></div>
-                    <button class="bg-slate-800 text-[10px] px-3 py-1 rounded-lg font-bold">TRANSCRIPT</button>
+                    <div><p class="text-xs font-bold">${t.user}</p><p class="text-[9px] text-slate-500">${t.date}</p></div>
+                    <button class="bg-slate-800 text-[10px] px-3 py-1 rounded">VIEW</button>
                 </div>
             `).join('');
         }
 
-        socket.on('discordMessage', (msg) => {
-            const cont = document.getElementById('log-container');
-            cont.insertAdjacentHTML('beforeend', `<div><span class="text-slate-600">[${msg.time}]</span> <span class="text-indigo-400 font-bold">#${msg.channel}</span> <span class="text-slate-200">${msg.author}:</span> ${msg.content}</div>`);
-            cont.scrollTop = cont.scrollHeight;
+        socket.on('discordMessage', (m) => {
+            const l = document.getElementById('log-cont');
+            l.insertAdjacentHTML('beforeend', `<div>[${m.time}] <span class="text-indigo-400">#${m.channel}</span> ${m.author}: ${m.content}</div>`);
+            l.scrollTop = l.scrollHeight;
         });
 
-        // Emitters
-        function saveKnowledge() { socket.emit('saveKnowledge', document.getElementById('knowledge-input').value); alert("Brain Updated!"); }
-        function sendMessage() { socket.emit('sendMessage', { channelId: document.getElementById('build-channel').value, content: document.getElementById('build-msg').value }); alert("Sent!"); }
-        function modAction(type) { socket.emit('moderation', { type, userId: document.getElementById('mod-user').value, reason: document.getElementById('mod-reason').value }); }
+        function saveK() { socket.emit('saveKnowledge', document.getElementById('k-input').value); alert("Knowledge Updated!"); }
+        function sendMsg() { socket.emit('sendMessage', { channelId: document.getElementById('b-chan').value, content: document.getElementById('b-msg').value }); }
+        function mod(type) { socket.emit('moderation', { type, userId: document.getElementById('m-user').value, reason: document.getElementById('m-reason').value, time: document.getElementById('m-time').value }); }
 
-        window.onload = () => { socket.emit('getInitData'); lucide.createIcons(); };
+        socket.emit('getInitData');
+        lucide.createIcons();
     </script>
 </body>
 </html>
