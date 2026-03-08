@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Velocity | Enterprise</title>
+    <title>Velocity | Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -16,14 +16,15 @@
         @media (min-width: 768px) { .active-tab { border-top: none; border-left: 4px solid #818cf8; background: rgba(99, 102, 241, 0.1); } }
         select, input, textarea { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 0.75rem !important; padding: 0.75rem !important; outline: none; color: white; width: 100%; }
         .log-item { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
+
     <div class="flex flex-col md:flex-row h-screen overflow-hidden">
         <aside class="hidden md:flex w-72 bg-[#080c14] border-r border-slate-800 flex-col p-6">
-            <div class="flex items-center gap-3 text-indigo-400 font-extrabold text-2xl mb-10"><i data-lucide="zap"></i> VELOCITY</div>
-            <nav class="space-y-2">
+            <div class="flex items-center gap-3 text-indigo-400 font-extrabold text-2xl mb-10 tracking-tighter"><i data-lucide="zap"></i> VELOCITY</div>
+            <nav class="space-y-2 flex-1">
                 <button onclick="showTab('builder')" id="d-builder" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"><i data-lucide="message-square"></i> Builder</button>
                 <button onclick="showTab('mod')" id="d-mod" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"><i data-lucide="shield-alert"></i> Security</button>
                 <button onclick="showTab('files')" id="d-files" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"><i data-lucide="folder-open"></i> Cloud Files</button>
@@ -32,60 +33,90 @@
         </aside>
 
         <main class="flex-1 overflow-y-auto p-4 md:p-10 pb-28">
+            
             <section id="builder" class="max-w-4xl mx-auto space-y-6">
                 <h2 class="text-2xl font-bold">Message Builder</h2>
                 <div class="glass-card space-y-4">
                     <select class="channel-list" id="buildChannel"></select>
-                    <textarea id="msgInput" oninput="updatePreview('msgPrev', 'msgInput')" class="h-32 resize-none" placeholder="Draft your broadcast..."></textarea>
-                    <button onclick="sendMsg()" class="w-full bg-indigo-600 py-4 rounded-xl font-bold">Send Message</button>
+                    <textarea id="msgInput" oninput="updatePreview('msgPrev', 'msgInput')" class="h-32 resize-none" placeholder="Type broadcast..."></textarea>
+                    <button onclick="sendMsg()" class="w-full bg-indigo-600 py-4 rounded-xl font-bold">Broadcast Message</button>
                 </div>
                 <div class="bg-[#2b2d31] p-4 rounded-xl flex gap-4 border border-slate-700">
-                    <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center font-bold">V</div>
+                    <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center font-bold italic">V</div>
                     <div>
-                        <div class="font-bold text-white text-sm">Velocity <span class="bg-indigo-500 text-[8px] px-1 rounded ml-1 uppercase">SYSTEM</span></div>
-                        <div id="msgPrev" class="text-slate-300 text-sm mt-1">Awaiting input...</div>
+                        <div class="font-bold text-white text-sm">Velocity <span class="bg-indigo-500 text-[8px] px-1 rounded ml-1 uppercase">BOT</span></div>
+                        <div id="msgPrev" class="text-slate-300 text-sm mt-1 leading-relaxed">Awaiting input...</div>
                     </div>
                 </div>
             </section>
 
             <section id="mod" class="hidden max-w-4xl mx-auto space-y-6">
-                <h2 class="text-2xl font-bold">Security Controls</h2>
-                <div class="glass-card space-y-4">
-                    <select class="user-list" id="modUser"></select>
-                    <input id="modReason" oninput="updatePreview('reasonPrev', 'modReason')" placeholder="Reason for enforcement...">
-                    <div class="bg-red-900/10 border border-red-500/20 p-3 rounded-lg text-xs italic text-red-300">
-                        Admin Preview: <span id="reasonPrev">None.</span>
+                <h2 class="text-2xl font-bold">Security Operations</h2>
+                
+                <div class="glass-card space-y-6">
+                    <h3 class="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="user-x"></i> User Enforcement</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <select class="user-list" id="modUser"></select>
+                        <input id="modReason" oninput="updatePreview('reasonPrev', 'modReason')" placeholder="Enforcement reason...">
                     </div>
+                    <div class="bg-red-900/10 border border-red-500/20 p-3 rounded-lg text-xs italic text-red-300">Preview: <span id="reasonPrev">None.</span></div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <button onclick="modAction('warn')" class="bg-yellow-600/20 text-yellow-500 p-2 rounded-lg text-xs font-bold uppercase">Warn (DM)</button>
-                        <button onclick="modAction('kick')" class="bg-orange-600/20 text-orange-500 p-2 rounded-lg text-xs font-bold uppercase">Kick</button>
-                        <button onclick="modAction('ban')" class="bg-red-600 p-2 rounded-lg text-xs font-bold uppercase">Ban</button>
-                        <button onclick="modAction('lock')" class="bg-slate-800 p-2 rounded-lg text-xs font-bold uppercase">Lock Channel</button>
+                        <button onclick="modAction('warn')" class="bg-yellow-600/20 text-yellow-500 border border-yellow-600/30 p-2 rounded-lg text-[10px] font-bold">WARN (DM)</button>
+                        <button onclick="modAction('kick')" class="bg-orange-600/20 text-orange-500 border border-orange-600/30 p-2 rounded-lg text-[10px] font-bold">KICK</button>
+                        <button onclick="modAction('ban')" class="bg-red-600 text-white p-2 rounded-lg text-[10px] font-bold">BAN</button>
+                        <button onclick="modAction('timeout')" class="bg-slate-700 p-2 rounded-lg text-[10px] font-bold">TIMEOUT</button>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 font-bold uppercase">Timeout Duration: <span id="timeVal" class="text-indigo-400">10m</span></label>
+                        <input type="range" id="timeSlider" min="1" max="60" value="10" oninput="document.getElementById('timeVal').innerText = this.value + 'm'" class="accent-indigo-500 mt-2">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="glass-card space-y-4">
+                        <h3 class="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="hash"></i> Channel Logic</h3>
+                        <select class="channel-list" id="lockChannel"></select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="modAction('lock')" class="bg-red-900/20 text-red-500 border border-red-500/50 p-2 rounded-lg text-[10px] font-bold">LOCK</button>
+                            <button onclick="modAction('unlock')" class="bg-green-900/20 text-green-500 border border-green-600/50 p-2 rounded-lg text-[10px] font-bold">UNLOCK</button>
+                        </div>
+                        <label class="text-[10px] text-slate-400 font-bold uppercase">Slowmode: <span id="slowVal" class="text-indigo-400">0s</span></label>
+                        <input type="range" id="slowSlider" min="0" max="120" value="0" oninput="document.getElementById('slowVal').innerText = this.value + 's'" class="accent-indigo-500">
+                        <button onclick="modAction('slowmode')" class="w-full bg-slate-800 p-2 rounded-lg text-[10px] font-bold">APPLY SLOWMODE</button>
+                    </div>
+
+                    <div class="glass-card space-y-4">
+                        <h3 class="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="mic-off"></i> Voice Ops</h3>
+                        <select class="user-list" id="vcUser"></select>
+                        <select class="vc-list" id="vcTarget"></select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="modAction('move')" class="bg-blue-600 p-2 rounded-lg text-[10px] font-bold">MOVE</button>
+                            <button onclick="modAction('disconnect')" class="bg-slate-700 p-2 rounded-lg text-[10px] font-bold">KICK VC</button>
+                        </div>
+                        <button onclick="modAction('mute')" class="w-full bg-yellow-600/20 text-yellow-500 border border-yellow-600/50 p-2 rounded-lg text-[10px] font-bold uppercase">Toggle Server Mute</button>
                     </div>
                 </div>
             </section>
 
             <section id="files" class="hidden max-w-4xl mx-auto space-y-6">
-                <h2 class="text-2xl font-bold">Cloud Files</h2>
+                <h2 class="text-2xl font-bold">Cloud Assets</h2>
                 <div id="fileGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </section>
 
             <section id="logs" class="hidden max-w-4xl mx-auto space-y-4">
                 <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-bold">Live Activity</h2>
-                    <select id="logFilter" class="w-64" onchange="loadHistory()">
-                        <option value="all">All Channels</option>
-                    </select>
+                    <select id="logFilter" class="w-64" onchange="loadHistory()"><option value="all">Live Stream...</option></select>
                 </div>
                 <div id="logContainer" class="bg-black/40 border border-slate-800 rounded-2xl p-4 h-[60vh] overflow-y-auto font-mono text-[11px] space-y-2"></div>
             </section>
         </main>
 
         <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-[#080c14] border-t border-slate-800 flex justify-around items-center h-20 px-4 z-50">
-            <button onclick="showTab('builder')" id="m-builder" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="message-square"></i><span class="text-[8px] font-bold">BUILD</span></button>
-            <button onclick="showTab('mod')" id="m-mod" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="shield-alert"></i><span class="text-[8px] font-bold">MOD</span></button>
-            <button onclick="showTab('files')" id="m-files" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="folder-open"></i><span class="text-[8px] font-bold">FILES</span></button>
-            <button onclick="showTab('logs')" id="m-logs" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="activity"></i><span class="text-[8px] font-bold">LOGS</span></button>
+            <button onclick="showTab('builder')" id="m-builder" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="message-square"></i><span class="text-[9px] font-bold">BUILD</span></button>
+            <button onclick="showTab('mod')" id="m-mod" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="shield-alert"></i><span class="text-[9px] font-bold">MOD</span></button>
+            <button onclick="showTab('files')" id="m-files" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="folder-open"></i><span class="text-[9px] font-bold">FILES</span></button>
+            <button onclick="showTab('logs')" id="m-logs" class="flex flex-col items-center gap-1 text-slate-500"><i data-lucide="activity"></i><span class="text-[9px] font-bold">LOGS</span></button>
         </nav>
     </div>
 
@@ -94,41 +125,27 @@
         let selectedChannel = 'all';
         lucide.createIcons();
 
-        function updatePreview(prevId, inputId) {
-            document.getElementById(prevId).innerText = document.getElementById(inputId).value || (inputId === 'msgInput' ? 'Awaiting input...' : 'None.');
-        }
-
+        function updatePreview(p, i) { document.getElementById(p).innerText = document.getElementById(i).value || 'None.'; }
+        
         socket.on('connect', () => socket.emit('getInitData'));
 
         socket.on('initData', (data) => {
             document.querySelectorAll('.channel-list').forEach(s => s.innerHTML = data.channels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join(''));
-            document.getElementById('logFilter').innerHTML = `<option value="all">Select Channel History...</option>` + data.channels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join('');
+            document.getElementById('logFilter').innerHTML = `<option value="all">Live Feed (All)</option>` + data.channels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join('');
             document.querySelectorAll('.user-list').forEach(s => s.innerHTML = data.members.map(m => `<option value="${m.id}">${m.tag}</option>`).join(''));
+            document.querySelectorAll('.vc-list').forEach(s => s.innerHTML = data.vcs.map(v => `<option value="${v.id}">${v.name}</option>`).join(''));
             document.getElementById('fileGrid').innerHTML = data.files.map(renderFile).join('');
+            lucide.createIcons();
         });
 
-        // HANDLE HISTORY DATA
         socket.on('historyData', (msgs) => {
             const container = document.getElementById('logContainer');
-            container.innerHTML = `<div class="text-center text-slate-500 text-[9px] uppercase tracking-widest mb-4">--- Showing last 50 messages ---</div>`;
+            container.innerHTML = `<div class="text-center text-slate-500 text-[9px] mb-4">--- History Loaded ---</div>`;
             msgs.forEach(addLogLine);
             container.scrollTop = container.scrollHeight;
         });
 
-        socket.on('discordMessage', (msg) => {
-            if (selectedChannel === 'all' || selectedChannel === msg.channelId) {
-                addLogLine(msg);
-            }
-        });
-
-        function loadHistory() {
-            selectedChannel = document.getElementById('logFilter').value;
-            if (selectedChannel === 'all') {
-                document.getElementById('logContainer').innerHTML = `<div class="p-10 text-center text-slate-600">Select a specific channel to view full history and live updates.</div>`;
-            } else {
-                socket.emit('fetchHistory', selectedChannel);
-            }
-        }
+        socket.on('discordMessage', (msg) => { if (selectedChannel === 'all' || selectedChannel === msg.channelId) addLogLine(msg); });
 
         function addLogLine(msg) {
             const container = document.getElementById('logContainer');
@@ -136,41 +153,41 @@
             d.className = 'log-item';
             d.innerHTML = `<span class="text-slate-500">[${msg.time}]</span> <span class="text-indigo-400 font-bold">#${msg.channel}</span> <span class="text-white">${msg.author}:</span> ${msg.content}`;
             container.appendChild(d);
-            if (container.childNodes.length > 200) container.removeChild(container.firstChild);
             container.scrollTop = container.scrollHeight;
         }
 
-        socket.on('newFile', (file) => {
-            document.getElementById('fileGrid').insertAdjacentHTML('afterbegin', renderFile(file));
-            lucide.createIcons();
-        });
+        function loadHistory() {
+            selectedChannel = document.getElementById('logFilter').value;
+            if (selectedChannel === 'all') document.getElementById('logContainer').innerHTML = '';
+            else socket.emit('fetchHistory', selectedChannel);
+        }
 
         function renderFile(f) {
-            return `<div class="glass-card flex items-center justify-between border-indigo-500/20"><div class="flex items-center gap-3"><div class="p-3 bg-indigo-500/10 rounded-lg text-indigo-400"><i data-lucide="file-text"></i></div><div><p class="font-bold text-sm truncate w-32">${f.name}</p><p class="text-[10px] text-slate-500">By ${f.uploader}</p></div></div><a href="${f.url}" target="_blank" class="bg-indigo-600 px-4 py-2 rounded-lg text-xs font-bold">Download</a></div>`;
+            return `<div class="glass-card flex items-center justify-between border-indigo-500/20"><div class="flex items-center gap-3"><div class="p-3 bg-indigo-500/10 rounded-lg text-indigo-400"><i data-lucide="file-text"></i></div><div><p class="font-bold text-sm truncate w-32">${f.name}</p><p class="text-[10px] text-slate-500">By ${f.uploader}</p></div></div><a href="${f.url}" target="_blank" class="bg-indigo-600 px-4 py-2 rounded-lg text-xs font-bold">Open</a></div>`;
         }
 
-        function showTab(tab) {
-            ['builder', 'mod', 'files', 'logs'].forEach(t => {
-                document.getElementById(t).classList.add('hidden');
-                document.getElementById(`m-${t}`).classList.remove('active-tab');
+        function showTab(t) {
+            ['builder', 'mod', 'files', 'logs'].forEach(tab => {
+                document.getElementById(tab).classList.add('hidden');
+                document.getElementById(`m-${tab}`).classList.remove('active-tab');
             });
-            document.getElementById(tab).classList.remove('hidden');
-            document.getElementById(`m-${tab}`).classList.add('active-tab');
+            document.getElementById(t).classList.remove('hidden');
+            document.getElementById(`m-${t}`).classList.add('active-tab');
             lucide.createIcons();
         }
 
-        function sendMsg() {
-            socket.emit('sendMessage', { channelId: document.getElementById('buildChannel').value, content: document.getElementById('msgInput').value });
-            document.getElementById('msgInput').value = '';
-            document.getElementById('msgPrev').innerText = 'Awaiting input...';
-        }
+        function sendMsg() { socket.emit('sendMessage', { channelId: document.getElementById('buildChannel').value, content: document.getElementById('msgInput').value }); document.getElementById('msgInput').value = ''; }
 
         function modAction(type) {
+            const isVoice = ['move', 'disconnect', 'mute'].includes(type);
             socket.emit('moderation', {
                 type,
-                userId: document.getElementById('modUser').value,
-                channelId: document.getElementById('buildChannel').value,
-                reason: document.getElementById('modReason').value
+                userId: document.getElementById(isVoice ? 'vcUser' : 'modUser').value,
+                channelId: document.getElementById(type === 'lock' || type === 'unlock' || type === 'slowmode' ? 'lockChannel' : 'buildChannel').value,
+                vcId: document.getElementById('vcTarget').value,
+                reason: document.getElementById('modReason').value,
+                time: document.getElementById('timeSlider').value,
+                slow: document.getElementById('slowSlider').value
             });
         }
 
