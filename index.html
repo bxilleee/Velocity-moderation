@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #020617; color: #e2e8f0; }
@@ -16,7 +17,8 @@
         .active-tab { color: #818cf8 !important; border-bottom: 2px solid #818cf8; }
         @media (min-width: 768px) { .active-tab { border-bottom: none; border-left: 4px solid #818cf8; background: rgba(99, 102, 241, 0.1); } }
         select, input, textarea { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 0.75rem !important; padding: 0.75rem !important; outline: none; color: white; width: 100%; }
-        .stat-card { background: linear-gradient(145deg, #0f172a, #1e293b); border: 1px solid #334155; }
+        .stat-card { background: linear-gradient(145deg, #0f172a, #1e293b); border: 1px solid #334155; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); }
     </style>
 </head>
 <body>
@@ -24,10 +26,10 @@
     <div id="transcriptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="glass-card w-full max-w-2xl h-[80vh] flex flex-col">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
-                <h3 id="modalTitle" class="font-bold text-lg text-indigo-400">Transcript</h3>
-                <button onclick="document.getElementById('transcriptModal').classList.add('hidden')" class="text-red-500"><i data-lucide="x"></i></button>
+                <h3 id="modalTitle" class="font-bold text-lg text-indigo-400">Transcript View</h3>
+                <button onclick="document.getElementById('transcriptModal').classList.add('hidden')" class="text-red-500 hover:scale-110 transition"><i data-lucide="x"></i></button>
             </div>
-            <textarea id="modalText" class="flex-1 bg-[#080c14] p-4 rounded-xl text-[11px] font-mono text-slate-300 resize-none outline-none" readonly></textarea>
+            <textarea id="modalText" class="flex-1 bg-[#080c14] p-4 rounded-xl text-[11px] font-mono text-slate-400 resize-none outline-none" readonly></textarea>
         </div>
     </div>
 
@@ -49,41 +51,50 @@
             <section id="home" class="max-w-5xl mx-auto space-y-8">
                 <div class="flex justify-between items-end">
                     <div>
-                        <h2 class="text-3xl font-bold">System Overview</h2>
-                        <p class="text-slate-500 text-sm">Real-time bot metrics and configuration.</p>
+                        <h2 class="text-3xl font-bold">System Pulse</h2>
+                        <p class="text-slate-500 text-sm">Real-time metrics and server growth.</p>
                     </div>
                     <div class="flex items-center gap-2 bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-xs font-bold border border-green-500/20">
-                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> SYSTEM LIVE
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> BOT ONLINE
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="stat-card p-5 rounded-2xl">
-                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Members</p>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase">Total Members</p>
                         <h3 id="statMembers" class="text-2xl font-bold mt-1">--</h3>
                     </div>
                     <div class="stat-card p-5 rounded-2xl">
-                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Latency</p>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase">System Ping</p>
                         <h3 id="statPing" class="text-2xl font-bold mt-1">--ms</h3>
                     </div>
                     <div class="stat-card p-5 rounded-2xl">
-                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">AI Tickets</p>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase">Active Tickets</p>
                         <h3 id="statTickets" class="text-2xl font-bold mt-1">--</h3>
                     </div>
                     <div class="stat-card p-5 rounded-2xl">
-                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Cloud Files</p>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase">Cloud Storage</p>
                         <h3 id="statFiles" class="text-2xl font-bold mt-1">--</h3>
                     </div>
                 </div>
 
-                <div class="glass-card space-y-4">
-                    <div class="flex items-center gap-3 text-indigo-400">
-                        <i data-lucide="brain-circuit"></i>
-                        <h3 class="font-bold">Server Knowledge Brain</h3>
+                <div class="grid lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 glass-card h-80">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase mb-4">7-Day Join Growth</h3>
+                        <canvas id="joinChart"></canvas>
                     </div>
-                    <p class="text-xs text-slate-400">Paste your server rules, FAQs, and important links below. The AI Analyst will use this information to answer ticket queries automatically.</p>
-                    <textarea id="knowledgeInput" class="h-48 font-sans text-sm" placeholder="e.g. Rule 1: No spam. Role info: To get VIP, you need to reach level 10..."></textarea>
-                    <button onclick="saveKnowledge()" class="bg-indigo-600 px-6 py-2 rounded-xl font-bold text-sm hover:bg-indigo-500 transition">Save Brain Data</button>
+                    <div class="glass-card flex flex-col justify-center items-center text-center space-y-4">
+                        <div class="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400"><i data-lucide="brain-circuit" class="w-8 h-8"></i></div>
+                        <h3 class="font-bold">Knowledge Brain</h3>
+                        <p class="text-[10px] text-slate-500">Train the AI with your server rules and FAQs below.</p>
+                        <button onclick="showTab('home')" class="text-indigo-400 text-[10px] font-bold underline">Scroll Down to Configure</button>
+                    </div>
+                </div>
+
+                <div class="glass-card space-y-4">
+                    <h3 class="font-bold flex items-center gap-2"><i data-lucide="cpu" class="text-indigo-400"></i> AI Analyst Training Data</h3>
+                    <textarea id="knowledgeInput" class="h-48 text-sm" placeholder="Question:Answer format works best. Example:&#10;rules: Please follow the #rules channel.&#10;vip: You can get VIP by donating in #store."></textarea>
+                    <button onclick="saveKnowledge()" class="bg-indigo-600 px-6 py-2 rounded-xl font-bold text-sm">Update AI Knowledge</button>
                 </div>
             </section>
 
@@ -91,71 +102,40 @@
                 <h2 class="text-2xl font-bold">Message Builder</h2>
                 <div class="glass-card space-y-4">
                     <select class="channel-list" id="buildChannel"></select>
-                    <textarea id="msgInput" oninput="updatePreview('msgPrev', 'msgInput')" class="h-32 resize-none" placeholder="Type message..."></textarea>
-                    <button onclick="sendMsg()" class="w-full bg-indigo-600 py-4 rounded-xl font-bold">Broadcast</button>
-                </div>
-                <div class="bg-[#2b2d31] p-4 rounded-xl flex gap-4 border border-slate-700">
-                    <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center font-bold">V</div>
-                    <div><div class="font-bold text-white text-sm">Velocity <span class="bg-indigo-500 text-[8px] px-1 rounded ml-1">BOT</span></div><div id="msgPrev" class="text-slate-300 text-sm mt-1">Awaiting input...</div></div>
+                    <textarea id="msgInput" class="h-32" placeholder="Message content..."></textarea>
+                    <button onclick="sendMsg()" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Send Announcement</button>
                 </div>
             </section>
 
             <section id="mod" class="hidden max-w-4xl mx-auto space-y-6">
-                <h2 class="text-2xl font-bold">Security Suite</h2>
+                <h2 class="text-2xl font-bold">Security</h2>
                 <div class="glass-card space-y-6">
-                    <h3 class="text-xs font-bold text-red-400 uppercase flex items-center gap-2"><i data-lucide="user-x"></i> Enforcement</h3>
                     <div class="grid md:grid-cols-2 gap-4">
                         <select class="user-list" id="modUser"></select>
-                        <input id="modReason" oninput="updatePreview('reasonPrev', 'modReason')" placeholder="Reason...">
+                        <input id="modReason" placeholder="Reason...">
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
-                        <button onclick="modAction('warn')" class="bg-yellow-600/20 text-yellow-500 p-2 rounded-lg text-[10px] font-bold">WARN</button>
-                        <button onclick="modAction('kick')" class="bg-orange-600/20 text-orange-500 p-2 rounded-lg text-[10px] font-bold">KICK</button>
-                        <button onclick="modAction('ban')" class="bg-red-600 text-white p-2 rounded-lg text-[10px] font-bold">BAN</button>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="modAction('warn')" class="bg-yellow-500/20 text-yellow-500 p-2 rounded-lg text-[10px] font-bold">WARN</button>
+                        <button onclick="modAction('kick')" class="bg-orange-500/20 text-orange-500 p-2 rounded-lg text-[10px] font-bold">KICK</button>
+                        <button onclick="modAction('ban')" class="bg-red-500 text-white p-2 rounded-lg text-[10px] font-bold">BAN</button>
                         <button onclick="modAction('timeout')" class="bg-slate-700 p-2 rounded-lg text-[10px] font-bold">TIMEOUT</button>
                     </div>
-                    <input type="range" id="timeSlider" min="1" max="60" value="10" oninput="document.getElementById('timeVal').innerText = this.value + 'm'" class="accent-indigo-500 mt-2">
-                    <span id="timeVal" class="text-indigo-400 text-xs">10m</span>
-                </div>
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div class="glass-card space-y-4">
-                        <h3 class="text-xs font-bold text-indigo-400 uppercase">Channel</h3>
-                        <select class="channel-list" id="lockChannel"></select>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="modAction('lock')" class="bg-red-900/20 text-red-500 p-2 rounded-lg text-[10px] font-bold">LOCK</button>
-                            <button onclick="modAction('unlock')" class="bg-green-900/20 text-green-500 p-2 rounded-lg text-[10px] font-bold">UNLOCK</button>
-                        </div>
-                    </div>
-                    <div class="glass-card space-y-4">
-                        <h3 class="text-xs font-bold text-blue-400 uppercase">Voice</h3>
-                        <select class="user-list" id="vcUser"></select>
-                        <select class="vc-list" id="vcTarget"></select>
-                        <button onclick="modAction('move')" class="w-full bg-blue-600 p-2 rounded-lg text-[10px] font-bold">MOVE</button>
-                    </div>
+                    <input type="range" id="timeSlider" min="1" max="60" value="10" class="accent-indigo-500">
                 </div>
             </section>
 
-            <section id="files" class="hidden max-w-4xl mx-auto space-y-8">
-                <h2 class="text-2xl font-bold">Files</h2>
+            <section id="files" class="hidden max-w-4xl mx-auto space-y-6">
+                <h2 class="text-2xl font-bold">File Approvals</h2>
                 <div id="pendingGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                <div id="approvedGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </section>
 
             <section id="logs" class="hidden max-w-4xl mx-auto space-y-4">
                 <h2 class="text-2xl font-bold">Logs</h2>
-                <select id="logFilter" onchange="loadHistory()"></select>
-                <div id="logContainer" class="bg-black/40 border border-slate-800 rounded-2xl p-4 h-[50vh] overflow-y-auto font-mono text-[11px] space-y-1"></div>
+                <div id="logContainer" class="bg-black/40 border border-slate-800 rounded-2xl p-4 h-[50vh] overflow-y-auto font-mono text-[10px]"></div>
             </section>
 
             <section id="tickets" class="hidden max-w-4xl mx-auto space-y-6">
                 <h2 class="text-2xl font-bold">AI Support</h2>
-                <div class="glass-card space-y-4">
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <select class="channel-list" id="ticketPostChannel"></select>
-                        <input id="staffRoleId" placeholder="Staff Role ID">
-                    </div>
-                    <button onclick="setupTickets()" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Deploy Ticket Module</button>
-                </div>
                 <div class="grid md:grid-cols-2 gap-6">
                     <div id="humanTicketList" class="space-y-4"></div>
                     <div id="transcriptList" class="space-y-4"></div>
@@ -169,7 +149,7 @@
                 <button onclick="showTab('home')" id="m-home" class="flex flex-col items-center gap-1 text-slate-500 flex-shrink-0"><i data-lucide="layout-dashboard"></i><span class="text-[9px] font-bold">HOME</span></button>
                 <button onclick="showTab('builder')" id="m-builder" class="flex flex-col items-center gap-1 text-slate-500 flex-shrink-0"><i data-lucide="message-square"></i><span class="text-[9px] font-bold">BUILDER</span></button>
                 <button onclick="showTab('mod')" id="m-mod" class="flex flex-col items-center gap-1 text-slate-500 flex-shrink-0"><i data-lucide="shield-alert"></i><span class="text-[9px] font-bold">SECURITY</span></button>
-                <button onclick="showTab('files')" id="m-files" class="flex flex-col items-center gap-1 text-slate-500 flex-shrink-0"><i data-lucide="folder-open"></i><span class="text-[9px] font-bold">CLOUD</span></button>
+                <button onclick="showTab('files')" id="m-files" class="flex flex-col items-center gap-1 text-slate-500 flex-shrink-0"><i data-lucide="folder-open"></i><span class="text-[9px] font-bold">FILES</span></button>
                 <button onclick="showTab('logs')" id="m-logs" class="flex flex-col items-center gap-1 text-slate-500 flex-shrink-0"><i data-lucide="activity"></i><span class="text-[9px] font-bold">LOGS</span></button>
                 <button onclick="showTab('tickets')" id="m-tickets" class="flex flex-col items-center gap-1 text-slate-500 flex-shrink-0"><i data-lucide="ticket"></i><span class="text-[9px] font-bold">TICKETS</span></button>
             </div>
@@ -178,37 +158,30 @@
 
     <script>
         const socket = io();
-        let cachedTranscripts = [];
+        let myChart;
 
         function showTab(t) {
             ['home', 'builder', 'mod', 'files', 'logs', 'tickets'].forEach(id => {
                 const sec = document.getElementById(id);
                 if(sec) sec.classList.add('hidden');
-                const mBtn = document.getElementById(`m-${id}`);
-                const dBtn = document.getElementById(`d-${id}`);
-                if(mBtn) mBtn.classList.remove('active-tab');
-                if(dBtn) dBtn.classList.remove('active-tab');
+                document.getElementById(`m-${id}`).classList.remove('active-tab');
             });
             document.getElementById(t).classList.remove('hidden');
             document.getElementById(`m-${t}`).classList.add('active-tab');
-            document.getElementById(`d-${t}`).classList.add('active-tab');
             lucide.createIcons();
         }
-
-        socket.on('connect', () => socket.emit('getInitData'));
 
         socket.on('initData', (data) => {
             document.querySelectorAll('.channel-list').forEach(s => s.innerHTML = data.channels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join(''));
             document.querySelectorAll('.user-list').forEach(s => s.innerHTML = data.members.map(m => `<option value="${m.id}">${m.tag}</option>`).join(''));
-            document.querySelectorAll('.vc-list').forEach(s => s.innerHTML = data.vcs.map(v => `<option value="${v.id}">${v.name}</option>`).join(''));
             document.getElementById('knowledgeInput').value = data.knowledge || "";
             updateStats(data.stats);
+            renderJoinChart(data.joinData);
             refreshFiles(data.files);
             renderTickets(data.tickets);
             lucide.createIcons();
         });
 
-        socket.on('statsUpdate', (stats) => updateStats(stats));
         function updateStats(s) {
             document.getElementById('statMembers').innerText = s.members;
             document.getElementById('statPing').innerText = s.ping + 'ms';
@@ -216,62 +189,67 @@
             document.getElementById('statFiles').innerText = s.files;
         }
 
-        function saveKnowledge() {
-            socket.emit('saveKnowledge', document.getElementById('knowledgeInput').value);
-            alert("Velocity Brain Updated!");
-        }
-
-        function modAction(type) {
-            socket.emit('moderation', {
-                type, userId: document.getElementById('modUser').value,
-                channelId: document.getElementById('lockChannel').value,
-                vcId: document.getElementById('vcTarget').value,
-                reason: document.getElementById('modReason').value,
-                time: document.getElementById('timeSlider').value
+        function renderJoinChart(data) {
+            const ctx = document.getElementById('joinChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Daily Joins',
+                        data: data.values,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } }
+                }
             });
         }
 
+        function saveKnowledge() { socket.emit('saveKnowledge', document.getElementById('knowledgeInput').value); alert("Brain Updated!"); }
+        function sendMsg() { socket.emit('sendMessage', { channelId: document.getElementById('buildChannel').value, content: document.getElementById('msgInput').value }); }
+        function modAction(type) { socket.emit('moderation', { type, userId: document.getElementById('modUser').value, reason: document.getElementById('modReason').value, time: document.getElementById('timeSlider').value }); }
+        
         function refreshFiles(files) {
-            document.getElementById('pendingGrid').innerHTML = files.filter(f => f.status === 'pending').map(renderFile).join('');
-            document.getElementById('approvedGrid').innerHTML = files.filter(f => f.status === 'approved').map(renderFile).join('');
-            lucide.createIcons();
-        }
-
-        function renderFile(f) {
-            let ctrl = f.status === 'pending' ? `<button onclick="setFileStatus(${f.id}, 'approved')" class="text-green-500"><i data-lucide="check"></i></button>` : `<a href="${f.url}" target="_blank" class="text-indigo-400 uppercase text-[10px]">Open</a>`;
-            return `<div class="glass-card flex justify-between items-center p-3"><div><p class="text-xs font-bold">${f.name}</p></div>${ctrl}</div>`;
-        }
-
-        function setFileStatus(id, status) { socket.emit('fileAction', { id, status }); }
-
-        socket.on('ticketUpdate', (data) => renderTickets(data));
-        function renderTickets(data) {
-            cachedTranscripts = data.transcripts || [];
-            document.getElementById('humanTicketList').innerHTML = data.active.filter(t => t.needsHuman).map(t => `
-                <div class="glass-card border border-red-500/30 flex justify-between items-center">
-                    <span class="text-xs font-bold">${t.username}</span>
-                    <span class="text-red-500 text-[9px] font-bold">ESCALLY</span>
-                </div>
-            `).join('') || '<p class="text-slate-500 text-xs text-center">No active human requests.</p>';
-
-            document.getElementById('transcriptList').innerHTML = cachedTranscripts.map((t, i) => `
-                <div class="glass-card flex justify-between items-center">
-                    <div><p class="text-xs font-bold">${t.user}</p><p class="text-[9px] text-slate-500">${t.date}</p></div>
-                    <button onclick="openTranscript(${i})" class="bg-slate-800 text-[9px] px-2 py-1 rounded">VIEW</button>
+            document.getElementById('pendingGrid').innerHTML = files.filter(f => f.status === 'pending').map(f => `
+                <div class="glass-card flex justify-between items-center p-3">
+                    <span class="text-xs font-bold">${f.name}</span>
+                    <button onclick="socket.emit('fileAction', {id: ${f.id}, status: 'approved'})" class="text-green-500"><i data-lucide="check"></i></button>
                 </div>
             `).join('');
             lucide.createIcons();
         }
 
-        function openTranscript(i) {
-            const t = cachedTranscripts[i];
-            document.getElementById('modalText').value = t.text;
+        function renderTickets(data) {
+            document.getElementById('humanTicketList').innerHTML = data.active.filter(t => t.needsHuman).map(t => `<div class="glass-card border border-red-500/30 text-xs font-bold">${t.username} needs help!</div>`).join('');
+            document.getElementById('transcriptList').innerHTML = (data.transcripts || []).map((t, i) => `
+                <div class="glass-card flex justify-between items-center p-3">
+                    <span class="text-xs font-bold">${t.user}</span>
+                    <button onclick="viewT(${i})" class="bg-slate-800 text-[9px] px-2 py-1 rounded">VIEW</button>
+                </div>
+            `).join('');
+            window.transcripts = data.transcripts;
+            lucide.createIcons();
+        }
+
+        function viewT(i) {
+            document.getElementById('modalText').value = window.transcripts[i].text;
             document.getElementById('transcriptModal').classList.remove('hidden');
         }
 
-        function setupTickets() { socket.emit('setupTickets', { channelId: document.getElementById('ticketPostChannel').value, roleId: document.getElementById('staffRoleId').value }); }
-        function sendMsg() { socket.emit('sendMessage', { channelId: document.getElementById('buildChannel').value, content: document.getElementById('msgInput').value }); }
-        function updatePreview(p, i) { document.getElementById(p).innerText = document.getElementById(i).value || 'None.'; }
+        socket.on('discordMessage', (msg) => {
+            const container = document.getElementById('logContainer');
+            container.insertAdjacentHTML('beforeend', `<div>[${msg.time}] #${msg.channel} | ${msg.author}: ${msg.content}</div>`);
+            container.scrollTop = container.scrollHeight;
+        });
 
         showTab('home');
     </script>
