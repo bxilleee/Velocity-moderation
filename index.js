@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const client = new Client({
     intents: [
@@ -16,16 +17,25 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-let recentJoins = [];
+const DATA_FILE = './files.json';
 let uploadedFiles = [];
-const invites = new Collection();
+
+if (fs.existsSync(DATA_FILE)) {
+    try {
+        uploadedFiles = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    } catch (e) { console.error("Error loading saved files:", e); }
+}
+
+function saveToDisk() {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(uploadedFiles, null, 2));
+}
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const commands = [
     new SlashCommandBuilder()
         .setName('upload')
-        .setDescription('Upload a file to the Velocity Dashboard')
+        .setDescription('Upload a file for review')
         .addAttachmentOption(opt => opt.setName('file').setDescription('The file to upload').setRequired(true))
 ].map(c => c.toJSON());
 
@@ -33,20 +43,24 @@ client.on('ready', async () => {
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
     console.log('Velocity Engine Online');
-    const guild = client.guilds.cache.first();
-    if (guild) {
-        const invs = await guild.invites.fetch();
-        invites.set(guild.id, new Collection(invs.map(i => [i.code, i.uses])));
-    }
 });
 
 client.on('interactionCreate', async (int) => {
     if (!int.isChatInputCommand() || int.commandName !== 'upload') return;
     const file = int.options.getAttachment('file');
-    const data = { name: file.name, url: file.url, uploader: int.user.tag, time: new Date().toLocaleTimeString() };
+    const data = { 
+        id: Date.now(), // Unique ID for tracking
+        name: file.name, 
+        url: file.url, 
+        uploader: int.user.tag, 
+        status: 'pending', // Default status
+        time: new Date().toLocaleTimeString() 
+    };
+    
     uploadedFiles.unshift(data);
+    saveToDisk();
     io.emit('newFile', data);
-    await int.reply({ content: '✅ Uploaded to Dashboard!', ephemeral: true });
+    await int.reply({ content: '✅ File sent to Dashboard for approval!', ephemeral: true });
 });
 
 io.on('connection', (socket) => {
@@ -60,6 +74,16 @@ io.on('connection', (socket) => {
             members: members.map(m => ({id: m.id, tag: m.user.tag})),
             files: uploadedFiles
         });
+    });
+
+    // Handle Approval/Denial
+    socket.on('fileAction', (d) => {
+        const file = uploadedFiles.find(f => f.id === d.id);
+        if (file) {
+            file.status = d.status;
+            saveToDisk();
+            io.emit('updateFiles', uploadedFiles);
+        }
     });
 
     socket.on('fetchHistory', async (channelId) => {
@@ -88,7 +112,6 @@ io.on('connection', (socket) => {
         try {
             const member = await guild.members.fetch(d.userId);
             const channel = await guild.channels.fetch(d.channelId);
-            
             switch(d.type) {
                 case 'warn': 
                     await member.send(`⚠️ **Warned in ${guild.name}:** ${d.reason}`).catch(()=>{});
@@ -104,7 +127,7 @@ io.on('connection', (socket) => {
                 case 'disconnect': await member.voice.disconnect(); break;
                 case 'mute': await member.voice.setMute(!member.voice.mute); break;
             }
-        } catch (e) { console.error("Moderation Error:", e); }
+        } catch (e) { console.error(e); }
     });
 });
 
