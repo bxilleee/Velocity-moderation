@@ -11,22 +11,26 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #020617; color: #e2e8f0; }
         .glass-card { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.4); border-radius: 1.25rem; padding: 1.5rem; }
-        
-        /* Mobile Nav Scroll Fix */
         .nav-scroll { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; white-space: nowrap; gap: 2rem; padding: 0 1.5rem; }
         .nav-scroll::-webkit-scrollbar { display: none; }
-        
         .active-tab { color: #818cf8 !important; border-bottom: 2px solid #818cf8; }
-        @media (min-width: 768px) { 
-            .active-tab { border-bottom: none; border-left: 4px solid #818cf8; background: rgba(99, 102, 241, 0.1); } 
-        }
-
+        @media (min-width: 768px) { .active-tab { border-bottom: none; border-left: 4px solid #818cf8; background: rgba(99, 102, 241, 0.1); } }
         select, input, textarea { background: #0f172a !important; border: 1px solid #334155 !important; border-radius: 0.75rem !important; padding: 0.75rem !important; outline: none; color: white; width: 100%; }
         .pulse-red { animation: pulse 2s infinite; border-color: rgba(239, 68, 68, 0.5); }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     </style>
 </head>
 <body>
+
+    <div id="transcriptModal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="glass-card w-full max-w-2xl h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                <h3 id="modalTitle" class="font-bold text-lg text-indigo-400"><i data-lucide="archive" class="inline w-5 h-5 mr-2"></i>Transcript</h3>
+                <button onclick="document.getElementById('transcriptModal').classList.add('hidden')" class="bg-red-500/20 text-red-500 p-2 rounded hover:bg-red-500 hover:text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <textarea id="modalText" class="flex-1 w-full bg-[#080c14] border border-slate-800 p-4 rounded-xl text-[11px] font-mono text-slate-300 resize-none outline-none" readonly></textarea>
+        </div>
+    </div>
 
     <div class="flex flex-col md:flex-row h-screen overflow-hidden">
         <aside class="hidden md:flex w-72 bg-[#080c14] border-r border-slate-800 flex-col p-6">
@@ -75,7 +79,6 @@
                         <input type="range" id="timeSlider" min="1" max="60" value="10" oninput="document.getElementById('timeVal').innerText = this.value + 'm'" class="accent-indigo-500 mt-2">
                     </div>
                 </div>
-
                 <div class="grid md:grid-cols-2 gap-6">
                     <div class="glass-card space-y-4">
                         <h3 class="text-xs font-bold text-indigo-400 uppercase flex items-center gap-2"><i data-lucide="hash"></i> Channel</h3>
@@ -118,9 +121,17 @@
                     </div>
                     <button onclick="setupTickets()" class="w-full bg-indigo-600 py-3 rounded-xl font-bold uppercase text-xs">Deploy Ticket Module</button>
                 </div>
-                <div class="space-y-4">
-                    <h3 class="text-xs font-bold text-red-400 uppercase flex items-center gap-2"><i data-lucide="alert-circle"></i> Human Requests</h3>
-                    <div id="humanTicketList" class="grid grid-cols-1 gap-4"></div>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h3 class="text-xs font-bold text-red-400 uppercase flex items-center gap-2"><i data-lucide="alert-circle"></i> Human Requests</h3>
+                        <div id="humanTicketList" class="flex flex-col gap-4"></div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase flex items-center gap-2"><i data-lucide="archive"></i> Transcripts</h3>
+                        <div id="transcriptList" class="flex flex-col gap-4 max-h-[40vh] overflow-y-auto pr-2"></div>
+                    </div>
                 </div>
             </section>
 
@@ -140,8 +151,8 @@
     <script>
         const socket = io();
         let selectedLogChannel = 'all';
+        let cachedTranscripts = [];
 
-        // UI Tab Switcher
         function showTab(t) {
             ['builder', 'mod', 'files', 'logs', 'tickets'].forEach(id => {
                 const sec = document.getElementById(id);
@@ -151,10 +162,9 @@
             });
             document.getElementById(t).classList.remove('hidden');
             document.getElementById(`m-${t}`).classList.add('active-tab');
-            lucide.createIcons(); // Force reload icons
+            lucide.createIcons();
         }
 
-        // Socket Receivers
         socket.on('connect', () => socket.emit('getInitData'));
 
         socket.on('initData', (data) => {
@@ -167,20 +177,16 @@
             lucide.createIcons();
         });
 
-        // Mod Actions
         function modAction(type) {
             const isVoice = ['move', 'disconnect'].includes(type);
             socket.emit('moderation', {
-                type,
-                userId: document.getElementById(isVoice ? 'vcUser' : 'modUser').value,
+                type, userId: document.getElementById(isVoice ? 'vcUser' : 'modUser').value,
                 channelId: document.getElementById(type === 'lock' || type === 'unlock' ? 'lockChannel' : 'buildChannel').value,
                 vcId: document.getElementById('vcTarget') ? document.getElementById('vcTarget').value : null,
-                reason: document.getElementById('modReason').value,
-                time: document.getElementById('timeSlider').value
+                reason: document.getElementById('modReason').value, time: document.getElementById('timeSlider').value
             });
         }
 
-        // File Management
         socket.on('updateFiles', (files) => refreshFiles(files));
         function refreshFiles(files) {
             document.getElementById('pendingGrid').innerHTML = files.filter(f => f.status === 'pending').map(renderFile).join('');
@@ -198,25 +204,48 @@
 
         function setFileStatus(id, status) { socket.emit('fileAction', { id, status }); }
 
-        // Ticket Management
+        // --- TICKET & TRANSCRIPT LOGIC ---
+        socket.on('ticketUpdate', (data) => renderTickets(data));
+
         function setupTickets() {
             socket.emit('setupTickets', { channelId: document.getElementById('ticketPostChannel').value, roleId: document.getElementById('staffRoleId').value });
-            alert("Sent!");
+            alert("Ticket Embed Sent!");
         }
 
-        function renderTickets(tickets) {
+        function renderTickets(data) {
+            // Render Human Requests
             const list = document.getElementById('humanTicketList');
-            const reqs = tickets.filter(t => t.needsHuman);
+            const reqs = data.active.filter(t => t.needsHuman);
             list.innerHTML = reqs.length ? reqs.map(t => `
-                <div class="glass-card pulse-red flex justify-between items-center">
-                    <span class="font-bold text-xs">${t.username} needs help!</span>
-                    <button class="bg-red-600 px-3 py-1 rounded text-[10px] font-bold uppercase">Handle</button>
+                <div class="glass-card pulse-red border border-red-500/50 flex justify-between items-center p-3">
+                    <span class="font-bold text-xs">${t.username}</span>
+                    <span class="bg-red-900/40 text-red-400 px-2 py-1 rounded text-[10px] font-bold uppercase">Needs Help</span>
                 </div>
-            `).join('') : '<p class="text-slate-600 text-center text-xs">Clear</p>';
+            `).join('') : '<div class="glass-card p-4 text-slate-500 text-xs italic text-center">All clear.</div>';
+
+            // Render Transcripts
+            cachedTranscripts = data.transcripts || [];
+            const tList = document.getElementById('transcriptList');
+            tList.innerHTML = cachedTranscripts.length ? cachedTranscripts.map((t, index) => `
+                <div class="glass-card border border-slate-700 flex justify-between items-center p-3">
+                    <div>
+                        <div class="font-bold text-xs">${t.user}</div>
+                        <div class="text-[9px] text-slate-500">${t.date}</div>
+                    </div>
+                    <button onclick="openTranscript(${index})" class="bg-slate-800 hover:bg-indigo-600 transition px-3 py-1 rounded text-[10px] font-bold uppercase text-white">View</button>
+                </div>
+            `).join('') : '<div class="glass-card p-4 text-slate-500 text-xs italic text-center">No closed tickets yet.</div>';
             lucide.createIcons();
         }
 
-        // Logs
+        function openTranscript(index) {
+            const t = cachedTranscripts[index];
+            document.getElementById('modalTitle').innerHTML = `<i data-lucide="archive" class="inline w-5 h-5 mr-2"></i> Transcript: ${t.user}`;
+            document.getElementById('modalText').value = t.text;
+            document.getElementById('transcriptModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
         function loadHistory() { selectedLogChannel = document.getElementById('logFilter').value; socket.emit('fetchHistory', selectedLogChannel); }
         socket.on('discordMessage', (msg) => { if(selectedLogChannel === 'all' || selectedLogChannel === msg.channelId) addLog(msg); });
         socket.on('historyData', (msgs) => { document.getElementById('logContainer').innerHTML = ''; msgs.forEach(addLog); });
