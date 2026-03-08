@@ -1,0 +1,13 @@
+{
+  "name": "velocity-moderation",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
