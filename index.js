@@ -20,18 +20,17 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// --- PERMANENT STORAGE SETUP ---
+// --- PERMANENT STORAGE ---
 const FILES_DB = './files.json';
 const TICKETS_DB = './tickets.json';
 
 let uploadedFiles = [];
 let ticketConfig = { channelId: null, staffRoleId: null, activeTickets: [], transcripts: [] };
 
-// Load data from disk
 if (fs.existsSync(FILES_DB)) uploadedFiles = JSON.parse(fs.readFileSync(FILES_DB, 'utf8'));
 if (fs.existsSync(TICKETS_DB)) {
     const loaded = JSON.parse(fs.readFileSync(TICKETS_DB, 'utf8'));
-    ticketConfig = { ...ticketConfig, ...loaded }; // Merge to ensure transcripts array exists
+    ticketConfig = { ...ticketConfig, ...loaded };
 }
 
 function saveData() {
@@ -52,10 +51,10 @@ const commands = [
 client.on('ready', async () => {
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log(`Velocity Online | Logged in as ${client.user.tag}`);
+    console.log(`Velocity AI-Support Online | User: ${client.user.tag}`);
 });
 
-// --- DISCORD INTERACTION LOGIC (Tickets & Uploads) ---
+// --- INTERACTION HANDLING (TICKETS & UPLOADS) ---
 client.on('interactionCreate', async (int) => {
     if (int.isChatInputCommand() && int.commandName === 'upload') {
         const file = int.options.getAttachment('file');
@@ -63,7 +62,7 @@ client.on('interactionCreate', async (int) => {
         uploadedFiles.unshift(data);
         saveData();
         io.emit('updateFiles', uploadedFiles);
-        await int.reply({ content: '✅ File sent to Dashboard for approval!', ephemeral: true });
+        await int.reply({ content: '✅ File sent to Dashboard!', ephemeral: true });
     }
 
     if (int.isButton()) {
@@ -80,8 +79,9 @@ client.on('interactionCreate', async (int) => {
 
             const embed = new EmbedBuilder()
                 .setTitle("Velocity AI Support")
-                .setDescription(`Hello <@${int.user.id}>! I am the Velocity AI. **Why has this ticket been created today?**\n\nAsk me anything! If you need a human, click the button below.`)
-                .setColor("#6366f1");
+                .setDescription(`Hello <@${int.user.id}>! I am the Velocity AI. **Why has this ticket been created today?**\n\nI can check permissions or answer questions. If you need a human, click below.`)
+                .setColor("#6366f1")
+                .setFooter({ text: "Velocity Intelligent Analysis" });
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('request_human').setLabel('Request Human Support').setStyle(ButtonStyle.Danger),
@@ -101,8 +101,8 @@ client.on('interactionCreate', async (int) => {
                 ticket.needsHuman = true;
                 saveData();
                 io.emit('ticketUpdate', { active: ticketConfig.activeTickets, transcripts: ticketConfig.transcripts });
-                await int.channel.send(`🚨 <@&${ticketConfig.staffRoleId}> **Human support needed here!**`);
-                await int.reply({ content: "Staff notified via Dashboard.", ephemeral: true });
+                await int.channel.send(`🚨 <@&${ticketConfig.staffRoleId}> **A user has requested human intervention.**`);
+                await int.reply({ content: "Staff notified.", ephemeral: true });
             }
         }
 
@@ -110,34 +110,72 @@ client.on('interactionCreate', async (int) => {
             const ticketIndex = ticketConfig.activeTickets.findIndex(t => t.channelId === int.channelId);
             if (ticketIndex !== -1) {
                 const ticket = ticketConfig.activeTickets[ticketIndex];
-                
-                // Fetch messages for transcript
                 const msgs = await int.channel.messages.fetch({ limit: 100 });
-                const transcriptText = msgs.reverse().map(m => `[${m.createdAt.toLocaleTimeString()}] ${m.author.tag}: ${m.content || (m.embeds.length ? '[Embed Message]' : '')}`).join('\n');
+                const transcriptText = msgs.reverse().map(m => `[${m.createdAt.toLocaleTimeString()}] ${m.author.tag}: ${m.content}`).join('\n');
                 
-                // Save Transcript
                 ticketConfig.transcripts.unshift({ id: Date.now(), user: ticket.username, text: transcriptText, date: new Date().toLocaleDateString() });
                 ticketConfig.activeTickets.splice(ticketIndex, 1);
                 saveData();
-                
                 io.emit('ticketUpdate', { active: ticketConfig.activeTickets, transcripts: ticketConfig.transcripts });
                 
-                await int.reply("Saving transcript and closing ticket...");
-                setTimeout(() => int.channel.delete().catch(()=>console.log("Channel already deleted")), 3000);
+                await int.reply("Closing ticket and saving transcript...");
+                setTimeout(() => int.channel.delete().catch(() => {}), 3000);
             }
         }
     }
 });
 
-// --- AI TICKET CHAT & LIVE LOGS ---
+// --- AI ANALYTICS ENGINE & LIVE LOGS ---
 client.on('messageCreate', async (m) => {
     if (m.author.bot) return;
 
     const ticket = ticketConfig.activeTickets.find(t => t.channelId === m.channelId);
     if (ticket && !ticket.needsHuman) {
         m.channel.sendTyping();
-        setTimeout(() => {
-            m.reply(`[Velocity AI]: I've received your message regarding: "${m.content}". I'm looking into that for you. If you still need help from staff, please use the button above.`);
+        
+        setTimeout(async () => {
+            const input = m.content.toLowerCase();
+            const member = await m.guild.members.fetch(m.author.id);
+            let aiResponse = "I'm processing that. Could you describe the issue in more detail? I can check your permissions for specific channels if you mention them.";
+
+            // ANALYSIS: View Permissions
+            if (input.includes("see") || input.includes("view") || input.includes("hidden") || input.includes("access")) {
+                let target = m.mentions.channels.first();
+                if (!target) {
+                    const words = input.split(' ');
+                    for(const w of words) {
+                        const clean = w.replace('#','').replace(/[.,!?]/g, '');
+                        const found = m.guild.channels.cache.find(c => c.name.toLowerCase() === clean);
+                        if(found) { target = found; break; }
+                    }
+                }
+
+                if (target) {
+                    const perms = target.permissionsFor(member);
+                    if (!perms.has('ViewChannel')) {
+                        aiResponse = `[Analysis]: You cannot see <#${target.id}> because you lack the **View Channel** permission. You likely need a specific role. I have flagged this for staff review.`;
+                    } else {
+                        aiResponse = `[Analysis]: You **do** have permission to see <#${target.id}>. If it's missing, try refreshing Discord (CTRL+R) or checking if the channel is muted/collapsed.`;
+                    }
+                } else {
+                    aiResponse = "It sounds like you can't see a channel. Please **#mention** the channel or type its exact name so I can check your permissions.";
+                }
+            }
+
+            // ANALYSIS: Chat/Message Permissions
+            else if (input.includes("chat") || input.includes("send") || input.includes("talk") || input.includes("message") || input.includes("mute")) {
+                const perms = m.channel.permissionsFor(member);
+                if (member.communicationDisabledUntilTimestamp > Date.now()) {
+                    const timeRemaining = Math.round((member.communicationDisabledUntilTimestamp - Date.now()) / 60000);
+                    aiResponse = `[Analysis]: You are currently **Timed Out**. You will be able to speak again in approximately **${timeRemaining} minutes**.`;
+                } else if (!perms.has('SendMessages')) {
+                    aiResponse = `[Analysis]: You are unable to send messages here because you lack the **Send Messages** permission in this channel. This is likely due to a server-wide mute role or specific channel lock.`;
+                } else {
+                    aiResponse = `[Analysis]: Your permissions for this channel are active. You should be able to chat. If you can't, check if you're in a specific "Muted" role.`;
+                }
+            }
+
+            await m.reply(`**Velocity AI Analyst**\n${aiResponse}`);
         }, 1500);
     }
 
@@ -185,7 +223,7 @@ io.on('connection', (socket) => {
                 case 'disconnect': if(member.voice.channel) await member.voice.disconnect(); break;
                 case 'mute': if(member.voice.channel) await member.voice.setMute(!member.voice.mute); break;
             }
-        } catch (e) { console.error("Mod Error:", e); }
+        } catch (e) { console.error("Mod Action Error:", e); }
     });
 
     socket.on('setupTickets', async (d) => {
@@ -193,7 +231,7 @@ io.on('connection', (socket) => {
         ticketConfig.staffRoleId = d.roleId;
         saveData();
         const channel = await client.channels.fetch(d.channelId);
-        const embed = new EmbedBuilder().setTitle("Support Center").setDescription("Need assistance? Click the button below to start a conversation with our AI.").setColor("#6366f1");
+        const embed = new EmbedBuilder().setTitle("Support Center").setDescription("Need assistance? Click the button below to start a conversation with our AI Analyst.").setColor("#6366f1");
         const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('create_ticket').setLabel('Create Ticket').setStyle(ButtonStyle.Primary));
         await channel.send({ embeds: [embed], components: [row] });
     });
