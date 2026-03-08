@@ -52,7 +52,6 @@
 
             <section id="mod" class="hidden max-w-4xl mx-auto space-y-6">
                 <h2 class="text-2xl font-bold">Security Operations</h2>
-                
                 <div class="glass-card space-y-6">
                     <h3 class="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="user-x"></i> User Enforcement</h3>
                     <div class="grid md:grid-cols-2 gap-4">
@@ -67,7 +66,7 @@
                         <button onclick="modAction('timeout')" class="bg-slate-700 p-2 rounded-lg text-[10px] font-bold">TIMEOUT</button>
                     </div>
                     <div>
-                        <label class="text-[10px] text-slate-400 font-bold uppercase">Timeout Duration: <span id="timeVal" class="text-indigo-400">10m</span></label>
+                        <label class="text-[10px] text-slate-400 font-bold uppercase">Timeout: <span id="timeVal" class="text-indigo-400">10m</span></label>
                         <input type="range" id="timeSlider" min="1" max="60" value="10" oninput="document.getElementById('timeVal').innerText = this.value + 'm'" class="accent-indigo-500 mt-2">
                     </div>
                 </div>
@@ -80,11 +79,7 @@
                             <button onclick="modAction('lock')" class="bg-red-900/20 text-red-500 border border-red-500/50 p-2 rounded-lg text-[10px] font-bold">LOCK</button>
                             <button onclick="modAction('unlock')" class="bg-green-900/20 text-green-500 border border-green-600/50 p-2 rounded-lg text-[10px] font-bold">UNLOCK</button>
                         </div>
-                        <label class="text-[10px] text-slate-400 font-bold uppercase">Slowmode: <span id="slowVal" class="text-indigo-400">0s</span></label>
-                        <input type="range" id="slowSlider" min="0" max="120" value="0" oninput="document.getElementById('slowVal').innerText = this.value + 's'" class="accent-indigo-500">
-                        <button onclick="modAction('slowmode')" class="w-full bg-slate-800 p-2 rounded-lg text-[10px] font-bold">APPLY SLOWMODE</button>
                     </div>
-
                     <div class="glass-card space-y-4">
                         <h3 class="text-xs font-bold text-blue-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="mic-off"></i> Voice Ops</h3>
                         <select class="user-list" id="vcUser"></select>
@@ -93,14 +88,27 @@
                             <button onclick="modAction('move')" class="bg-blue-600 p-2 rounded-lg text-[10px] font-bold">MOVE</button>
                             <button onclick="modAction('disconnect')" class="bg-slate-700 p-2 rounded-lg text-[10px] font-bold">KICK VC</button>
                         </div>
-                        <button onclick="modAction('mute')" class="w-full bg-yellow-600/20 text-yellow-500 border border-yellow-600/50 p-2 rounded-lg text-[10px] font-bold uppercase">Toggle Server Mute</button>
                     </div>
                 </div>
             </section>
 
-            <section id="files" class="hidden max-w-4xl mx-auto space-y-6">
-                <h2 class="text-2xl font-bold">Cloud Assets</h2>
-                <div id="fileGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <section id="files" class="hidden max-w-4xl mx-auto space-y-8">
+                <h2 class="text-2xl font-bold">Asset Management</h2>
+                
+                <div>
+                    <h3 class="text-xs font-bold text-yellow-500 uppercase mb-4 tracking-widest">Pending Review</h3>
+                    <div id="pendingGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-green-500 uppercase mb-4 tracking-widest">Approved</h3>
+                    <div id="approvedGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-red-500 uppercase mb-4 tracking-widest">Denied</h3>
+                    <div id="deniedGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
             </section>
 
             <section id="logs" class="hidden max-w-4xl mx-auto space-y-4">
@@ -134,9 +142,47 @@
             document.getElementById('logFilter').innerHTML = `<option value="all">Live Feed (All)</option>` + data.channels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join('');
             document.querySelectorAll('.user-list').forEach(s => s.innerHTML = data.members.map(m => `<option value="${m.id}">${m.tag}</option>`).join(''));
             document.querySelectorAll('.vc-list').forEach(s => s.innerHTML = data.vcs.map(v => `<option value="${v.id}">${v.name}</option>`).join(''));
-            document.getElementById('fileGrid').innerHTML = data.files.map(renderFile).join('');
-            lucide.createIcons();
+            refreshFiles(data.files);
         });
+
+        socket.on('updateFiles', (files) => { refreshFiles(files); });
+        socket.on('newFile', (file) => { socket.emit('getInitData'); });
+
+        function refreshFiles(files) {
+            document.getElementById('pendingGrid').innerHTML = files.filter(f => f.status === 'pending').map(renderFile).join('');
+            document.getElementById('approvedGrid').innerHTML = files.filter(f => f.status === 'approved').map(renderFile).join('');
+            document.getElementById('deniedGrid').innerHTML = files.filter(f => f.status === 'denied').map(renderFile).join('');
+            lucide.createIcons();
+        }
+
+        function renderFile(f) {
+            let actions = '';
+            if (f.status === 'pending') {
+                actions = `
+                    <div class="flex gap-2">
+                        <button onclick="setFileStatus(${f.id}, 'approved')" class="bg-green-600/20 text-green-500 p-2 rounded-lg hover:bg-green-600 hover:text-white transition"><i data-lucide="check" class="w-4 h-4"></i></button>
+                        <button onclick="setFileStatus(${f.id}, 'denied')" class="bg-red-600/20 text-red-500 p-2 rounded-lg hover:bg-red-600 hover:text-white transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>`;
+            } else {
+                actions = `<a href="${f.url}" target="_blank" class="bg-indigo-600/20 text-indigo-400 px-4 py-2 rounded-lg text-xs font-bold uppercase hover:bg-indigo-600 hover:text-white transition">Open</a>`;
+            }
+
+            return `
+                <div class="glass-card flex items-center justify-between border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-slate-800 rounded-lg"><i data-lucide="file"></i></div>
+                        <div>
+                            <p class="font-bold text-sm truncate w-24 md:w-40">${f.name}</p>
+                            <p class="text-[10px] text-slate-500">By ${f.uploader}</p>
+                        </div>
+                    </div>
+                    ${actions}
+                </div>`;
+        }
+
+        function setFileStatus(id, status) {
+            socket.emit('fileAction', { id, status });
+        }
 
         socket.on('historyData', (msgs) => {
             const container = document.getElementById('logContainer');
@@ -162,10 +208,6 @@
             else socket.emit('fetchHistory', selectedChannel);
         }
 
-        function renderFile(f) {
-            return `<div class="glass-card flex items-center justify-between border-indigo-500/20"><div class="flex items-center gap-3"><div class="p-3 bg-indigo-500/10 rounded-lg text-indigo-400"><i data-lucide="file-text"></i></div><div><p class="font-bold text-sm truncate w-32">${f.name}</p><p class="text-[10px] text-slate-500">By ${f.uploader}</p></div></div><a href="${f.url}" target="_blank" class="bg-indigo-600 px-4 py-2 rounded-lg text-xs font-bold">Open</a></div>`;
-        }
-
         function showTab(t) {
             ['builder', 'mod', 'files', 'logs'].forEach(tab => {
                 document.getElementById(tab).classList.add('hidden');
@@ -183,11 +225,10 @@
             socket.emit('moderation', {
                 type,
                 userId: document.getElementById(isVoice ? 'vcUser' : 'modUser').value,
-                channelId: document.getElementById(type === 'lock' || type === 'unlock' || type === 'slowmode' ? 'lockChannel' : 'buildChannel').value,
+                channelId: document.getElementById(type === 'lock' || type === 'unlock' ? 'lockChannel' : 'buildChannel').value,
                 vcId: document.getElementById('vcTarget').value,
                 reason: document.getElementById('modReason').value,
-                time: document.getElementById('timeSlider').value,
-                slow: document.getElementById('slowSlider').value
+                time: document.getElementById('timeSlider').value
             });
         }
 
